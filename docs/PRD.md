@@ -256,3 +256,28 @@ Settings:
 ## 10. Key architecture rule
 
 Optimize for SageTV-NG.
+
+---
+
+## 11. Role Clarification (Plugin vs Shared Server Core)
+
+### 11.1 Plugin-owned server logic (V1)
+
+The following server-side behavior is implemented by this plugin and should remain in plugin code:
+- Telemetry sidecar detection and DJI SRT parsing
+- Telemetry capability generation for playback popup/menu decisions
+- Telemetry field inventory and per-media capability payload creation
+- Unit preference resolution and telemetry unit conversions
+
+Rationale: these are feature-specific behaviors for telemetry overlay playback and are not required by unrelated server features.
+
+### 11.2 Shared server-core candidate
+
+The following capability should be implemented in shared server core (or moved there) because it is reusable across many features and plugins:
+- 10-bit HEVC capability discovery path and normalized capability signal
+
+Rationale: codec capability discovery impacts direct play/transcode decisions and can be reused by playback, telemetry overlays, and other media features.
+
+### 11.3 Integration rule
+
+If a function is telemetry-specific, keep it in plugin code. If a function is reusable across unrelated features, propose it as shared server-core functionality first.
