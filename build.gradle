@@ -17,6 +17,10 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
@@ -28,4 +32,8 @@ jar {
             'Implementation-Version': project.version
         )
     }
+}
+
+test {
+    useJUnitPlatform()
 }
