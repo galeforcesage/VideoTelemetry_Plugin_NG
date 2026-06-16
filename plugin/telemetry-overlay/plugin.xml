@@ -1,0 +1,8 @@
+<plugin>
+  <name>Telemetry Overlay Playback</name>
+  <identifier>com.sagetv.ng.telemetry</identifier>
+  <version>1.0.0</version>
+  <type>Standard</type>
+  <author>YourName</author>
+  <description>Telemetry-aware playback for drone/action video</description>
+</plugin>
