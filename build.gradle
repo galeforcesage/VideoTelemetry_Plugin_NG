@@ -1,0 +1,31 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.sagetv.ng'
+version = '1.0.0-SNAPSHOT'
+
+description = 'Telemetry-aware playback support for SageTV-NG.'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes(
+            'Implementation-Title': 'Telemetry Overlay Playback Plugin',
+            'Implementation-Version': project.version
+        )
+    }
+}
