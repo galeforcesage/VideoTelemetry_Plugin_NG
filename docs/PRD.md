@@ -1,45 +1,39 @@
-# Video Telemetry Overlay Playback Plugin — PRD
+# Video Telemetry Overlay Playback Plugin — PRD (V1)
 
 ## 1. Overview
 
-Implement the first **SageTV‑NG** native plugin: a **Video Telemetry Overlay Playback Plugin**.
+Implement the first **SageTV-NG** native plugin: **Video Telemetry Overlay Playback Plugin**.
 
-Adds:
+V1 adds:
 - Telemetry-aware playback for video content
-- Real-time overlay rendering (DJI is the initial target)
+- Real-time telemetry overlay support (DJI SRT initial target)
 - Extensible telemetry ingestion framework
+- Plugin/server playback capability contract for telemetry + caption awareness
 
-Integrated into: **Video → Playback UI** (NG clients).
+Integrated into: **Video -> Playback UI** (NG clients, with legacy compatibility where possible).
 
 ---
 
 ## 2. Platform Scope
 
-### ✅ Required
+### Required
 
 | Component | Requirement |
 |-----------|-------------|
-| Server    | SageTV‑NG **only** |
-| Clients   | NG clients (Android, Windows, etc.) and legacy clients (legacy may have limited functionality) |
-| Runtime   | Java 21 LTS |
+| Server | SageTV-NG only |
+| Clients | NG clients and legacy clients (best effort) |
+| Runtime | Java 21 LTS |
 
-### ❌ Not Required
+### Not required
 - Legacy SageTV server support
 
-**Constraint:** No architectural compromises for NG due to legacy compatibility.
+Constraint: no architectural compromises for NG due to legacy compatibility.
 
 ---
 
-## 3. Plugin Architecture (NG-Focused)
+## 3. V1 Architecture
 
-### Design Requirements
-Follow standard SageTV plugin structure for install / distribution, but:
-- ✅ Behavior optimized for NG server + NG clients
-- ✅ Transparent to the user (auto-detect telemetry based on sidecar)
-- ✅ Rewire setup menu: replace **"program guide marks non-Tribune provided channels"** with **"Telemetry available to display"** and wire it to the video display
-- ✅ Support legacy clients (best-effort)
-
-### Structure
+### 3.1 Plugin packaging
 
 ```
 /JARs/
@@ -49,7 +43,7 @@ Follow standard SageTV plugin structure for install / distribution, but:
   telemetry-overlay/plugin.xml
 ```
 
-### 3.1 `plugin.xml`
+### 3.2 Plugin metadata (`plugin.xml`)
 
 ```xml
 <plugin>
@@ -62,40 +56,64 @@ Follow standard SageTV plugin structure for install / distribution, but:
 </plugin>
 ```
 
-### 3.2 Responsibilities
+### 3.3 Responsibility split
 
-**Server (NG)**
-- File detection
-- Telemetry parsing
-- Unit preference resolution
-- Telemetry cache
+Server + plugin responsibilities in V1:
+- File/sidecar detection for telemetry candidates
+- DJI SRT parsing into normalized telemetry track entries
+- Unit preference resolution and conversion
+- Telemetry cache lifecycle
+- Capability contract generation for playback popup/menu decisions
 
-**Client (NG)**
-- Overlay rendering
-- Sync with playback clock
+Client responsibilities:
+- Render overlay and handle playback-time synchronization based on existing integration hooks
+
+Note: do not assume client code changes unless explicitly approved.
+
+### 3.4 Plugin/server capability contract (required)
+
+Define a plugin/server contract that represents playback options for the current media item.
+
+Required fields:
+- `telemetryAvailable: boolean`
+- `captionsAvailable: boolean`
+- `telemetryFields: string[]`
+- `captionTracks: string[]`
+
+Behavior intent:
+- If telemetry is available, telemetry controls can be presented.
+- If telemetry is unavailable and captions exist, caption controls are presented.
+- CC handling remains server-backed and already implemented; plugin consumes capability state.
 
 ---
 
-## 4. Functional Requirements
+## 4. Functional requirements (V1)
 
-### 4.1 Video Playback
+### 4.1 Playback compatibility
+
 Must support:
 - H.264
-- H.265 (HEVC, hardware dependent)
+- H.265/HEVC (hardware dependent)
 
-**Constraint:** Use the existing NG playback pipeline. **Do not fork or replace the player.**
+Constraint: use existing NG playback pipeline. Do not fork or replace the player.
 
-### 4.2 Telemetry Detection
-Auto-detect:
+### 4.2 Telemetry detection
+
+Auto-detect telemetry sidecars for a video, starting with DJI SRT in V1.
+
+Initial examples:
 - `video.mp4`
-- `video.srt`
-- Embedded subtitle extraction for display
+- `video.srt` (when interpreted as telemetry sidecar for this plugin)
 
-### 4.3 Telemetry Parsing (Phase 1)
+Caption/subtitle handling is pre-existing server functionality and must remain intact.
 
-**Source:** DJI SRT
+### 4.3 Telemetry parsing (Phase 1)
 
-**Output Model**
+Source:
+- DJI SRT
+
+Output model:
+
 ```java
 class TimedMetadata {
     double timestamp;
@@ -103,181 +121,138 @@ class TimedMetadata {
 }
 ```
 
-### 4.4 Telemetry Sync
-Telemetry must:
-- Track playback time precisely
-- Work with: pause, seek, FF / RW
+### 4.4 Sync semantics
 
-### 4.5 Overlay Rendering (Core UX — Required)
+Telemetry must track playback clock and remain correct for:
+- Pause
+- Seek
+- FF/RW
 
-**Rendering mode:** ✅ Overlay **on** video (mandatory).
+### 4.5 Overlay + popup behavior
 
-**Visual requirements:**
-- Semi-transparent background (20–40% black)
-- Edge placement
-  - Default: top-left
-  - Optional: bottom-left
+Rendering mode:
+- Overlay on video
 
-**UX justification:**
-- ✅ Always readable
-- ✅ Works across aspect ratios
-- ✅ Matches DJI / GoPro overlay conventions
+Visual defaults:
+- Semi-transparent black background (20-40%)
+- Default placement top-left
+- Optional placement bottom-left
 
-**Example layout**
-```
-ALT: 120 m     SPD: 8 m/s     GPS: 41.87, -87.62
-```
+Playback popup/menu requirement:
+- Plugin drives availability and field-level toggles through capability contract.
+- Telemetry controls and caption controls must not conflict.
 
-**Controls — Playback Options popup**
+### 4.6 Units
 
-The playback popup / menu must be context-aware and shared with the existing standard playback popup video menu:
-- When the current video **has telemetry metadata**, show Telemetry Overlay controls:
-  - **All Telemetry ON/OFF**
-  - Individually selectable fields: Height/Altitude, Speed, GPS/location, Heading, Distance, Camera/Gimbal data, and any future parsed telemetry fields
-- When the current video is **OTA or normal video with caption/subtitle tracks** (SRT/CC), the same popup area must instead show caption controls mapped to available tracks (e.g. CC1, CC2, SRT track selection, Off)
-- Telemetry options **must not** appear when no telemetry source is available
-- CC/SRT options **must not** be displaced when the content is a normal captioned video
+Telemetry respects global user unit preference where available.
 
-### 4.6 Units System (Required)
+Fallback plugin setting if global setting is unavailable:
 
-Telemetry **must** respect the global user unit preference (Metric vs Imperial).
-
-**Integration strategy**
-
-*Step 1 — Detect system preference.* Search for:
-- Weather plugin settings
-- Locale settings
-- Units preference
-
-Likely sources: Weather plugin settings, regional / locale config.
-
-*Step 2 — Fallback.* If no global unit setting exists, add plugin setting:
 ```
 telemetry_units = metric | imperial | auto
 ```
 
-**Conversion rules**
+Conversion rules:
+
 ```
 alt_ft = alt_m * 3.28084
 mph    = mps   * 2.23694
 kmh    = mps   * 3.6
 ```
 
-**Display examples**
-
-Metric:
-```
-ALT: 120 m
-SPD: 8 m/s   (or 28.8 km/h later)
-```
-
-Imperial:
-```
-ALT: 394 ft
-SPD: 18 mph
-```
-
 ---
 
-## 5. Data Model
+## 5. Data model (V1)
 
-### 5.1 Telemetry Track
 ```java
 class TelemetryTrack {
     List<TimedMetadata> entries;
     TimedMetadata getAtTime(double time);
 }
-```
 
-### 5.2 Adapter Interface
-```java
 interface TelemetryAdapter {
     TelemetryTrack parse(File input);
 }
 ```
 
-### 5.3 Phase 2 Cache
+Phase-2 cache target:
+
 ```
 video.mp4.telemetry.json
 ```
 
 ---
 
-## 6. Implementation Phases
+## 6. Implementation phases
 
-### 🚀 Phase 1 (MVP)
-- ✅ NG plugin works end-to-end
-- ✅ DJI SRT parsing
-- ✅ Overlay rendering
-- ✅ Units conversion
-- JSON cache
-- UI polish (opacity, placement)
-- Improved seek sync
+### Phase 1 (V1)
+- NG plugin skeleton end-to-end
+- DJI SRT parser
+- Telemetry track model + lookup
+- Unit conversion support
+- Plugin/server capability contract for popup/menu
+- Integration hooks for telemetry availability decisions
 
-### 🚀 Phase 2
-- Map overlay (value to be discussed)
+### Phase 2+ (not V1)
+- Map overlay
 - Widget system
-- Adapter expansion
-  - GoPro cameras
-  - Garmin / cycling devices
-  - Race telemetry (OBD / CAN)
+- Additional adapters (GoPro, Garmin, OBD/CAN, GPX, MAVLink)
+- Extended cache optimization and UI polish
 
-### Design Constraint
-Core system must remain **telemetry-agnostic**. Adapters only:
-- DJI SRT → adapter
-- OBD/CAN → adapter
-- GPX → adapter
-- MAVLink → adapter
+Design rule: core remains telemetry-agnostic; adapters are plug-in modules.
 
 ---
 
-## 8. Implementation Checklist (Grep-Friendly)
+## 7. Required but pending hook confirmation
 
-**Plugin setup** — search: `plugin.xml`, `SageTVPlugin`
+These are required outcomes, but exact NG integration points/hook names are not assumed yet:
+- 10-bit HEVC capability discovery path (server and client capability signals)
+- Exact playback popup/menu integration hook used by plugin contract
+- Exact caption-track capability interface shape consumed by plugin
 
-**Playback hook** — search: `VideoPlayback`, `MediaPlayer`, `MiniClient`
+---
 
-**File detection** — search: `import scan`, `media import`; add: `*.srt` detection
+## 8. Implementation checklist (V1)
 
-**Telemetry module** — create:
-```
-/telemetry/
-  DjiSrtParser.java
-  TelemetryParser.java
-  TelemetryTrack.java
-```
+Plugin setup:
+- `plugin.xml`
+- SageTV plugin entry and packaging
 
-**Units integration** — search: `weather`, `units`, `locale`, `preferences`; add if missing: `UnitsProvider.java`
+Playback hook discovery:
+- `VideoPlayback`
+- `MediaPlayer`
+- `MiniClient`
 
-**Overlay UI** — search: `OSD`, `overlay`, `render`; create: `TelemetryOverlayView`
+Telemetry module:
+- `DjiSrtParser.java`
+- `TelemetryAdapter.java`
+- `TelemetryTrack.java`
+- `TimedMetadata.java`
 
-**Settings** — add:
+Contract module:
+- Playback capability model (telemetry + captions)
+
+Units:
+- Unit provider + conversion helpers
+- Preference resolution fallback
+
+Settings:
 - `telemetry_overlay_enabled`
 - `telemetry_units_override`
 
 ---
 
-## 9. Risks & Constraints
-
-### NG vs Legacy Risk
-
-| Risk | Decision |
-|------|----------|
-| Legacy client incompatibility | Accepted |
-| STV UI mismatch | Not supported |
-| NG-only features breaking legacy | Allowed |
-
-### Technical Risks
+## 9. Risks and constraints
 
 | Risk | Mitigation |
 |------|------------|
-| HEVC unsupported | Client fallback / transcode |
-| 10-bit overload | Capability detection |
-| SRT format drift | Tolerant parser |
-| UI performance | Lightweight rendering |
+| HEVC unsupported | Fallback/transcode decisions in existing pipeline |
+| 10-bit overload | Capability discovery before telemetry-heavy overlay paths |
+| SRT format drift | Tolerant parser and defensive field extraction |
+| UI performance | Lightweight overlay payloads and bounded update frequency |
 
 ---
 
-## 10. Key Architecture Rule
+## 10. Key architecture rule
 
-✅ **Optimize for SageTV‑NG.**
+Optimize for SageTV-NG.
