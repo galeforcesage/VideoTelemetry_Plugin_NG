@@ -26,6 +26,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 jar {
+    exclude 'sage/**'
     manifest {
         attributes(
             'Implementation-Title': 'Telemetry Overlay Playback Plugin',
