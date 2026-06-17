@@ -1,9 +1,9 @@
 package com.sagetv.ng.telemetry;
 
 import java.io.File;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
@@ -15,6 +15,7 @@ public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
     public static final String SETTING_UNITS_OVERRIDE = "telemetry_units_override";
 
     private final PlaybackCapabilityService capabilityService;
+    private final PlaybackPopupStateService popupStateService;
     private final CaptionCapabilitySource captionCapabilitySource;
     private final sage.SageTVPluginRegistry pluginRegistry;
     private final Map<String, String> configValues = new LinkedHashMap<>();
@@ -47,6 +48,7 @@ public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
         boolean resetConfig
     ) {
         this.capabilityService = capabilityService;
+        this.popupStateService = new PlaybackPopupStateService(capabilityService);
         this.captionCapabilitySource = captionCapabilitySource;
         this.pluginRegistry = pluginRegistry;
         initializeDefaultConfig();
@@ -69,6 +71,35 @@ public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
 
     public PlaybackCapability capabilityForMedia(File mediaFile) {
         return capabilityService.buildForMedia(mediaFile, captionCapabilitySource.availableCaptionTracks(mediaFile));
+    }
+
+    public TelemetryPopupState popupStateForMedia(File mediaFile) {
+        return popupStateService.popupStateForMedia(mediaFile, captionCapabilitySource.availableCaptionTracks(mediaFile));
+    }
+
+    public TelemetryPopupState setTelemetryEnabled(File mediaFile, boolean enabled) {
+        return popupStateService.setTelemetryEnabled(
+            mediaFile,
+            captionCapabilitySource.availableCaptionTracks(mediaFile),
+            enabled
+        );
+    }
+
+    public TelemetryPopupState setTelemetryFieldEnabled(File mediaFile, String field, boolean enabled) {
+        return popupStateService.setFieldEnabled(
+            mediaFile,
+            captionCapabilitySource.availableCaptionTracks(mediaFile),
+            field,
+            enabled
+        );
+    }
+
+    public Optional<TelemetryRenderFrame> renderFrameAtTime(File mediaFile, double timeSeconds) {
+        return popupStateService.renderFrameAtTime(
+            mediaFile,
+            captionCapabilitySource.availableCaptionTracks(mediaFile),
+            timeSeconds
+        );
     }
 
     @Override

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module>
+  <Name>TelemetryOverlaySTVi</Name>
+  <Description>Scaffold STVi import for telemetry popup/menu integration.</Description>
+  <Notes>
+    Placeholder import file for dynamic playback popup binding.
+    Real widget edits will be authored against the target STV in implementation phase.
+  </Notes>
+</Module>
