@@ -118,7 +118,7 @@ XML represents references, not nesting.
 
 ---
 
-## 11. Key Takeaways for SagaTV-NG
+## 11. Key Takeaways for SageTV-NG
 
 - Keep graph model
 - Add validation and DSL layer

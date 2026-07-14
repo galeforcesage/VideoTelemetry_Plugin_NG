@@ -1,7 +1,11 @@
 package com.sagetv.ng.telemetry;
 
-public final class ServerIntegrationNotes {
-    private ServerIntegrationNotes() {
+/**
+ * Constants for SageTV plugin event names, UI hooks, and API identifiers
+ * used by the telemetry overlay plugin.
+ */
+public final class SageEventConstants {
+    private SageEventConstants() {
     }
 
     // Plugin event names exposed through SageTVPluginRegistry and SageTVEventListener.

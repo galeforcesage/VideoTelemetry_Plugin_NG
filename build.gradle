@@ -18,6 +18,10 @@ repositories {
 }
 
 dependencies {
+    // SageTV SDK stubs — provided at runtime by the SageTV server.
+    // Kept as compileOnly so they are never packaged into the shadow/fat jar.
+    compileOnly fileTree(dir: 'src/main/java/sage', includes: ['*.java'])
+
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
 
@@ -26,12 +30,36 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 jar {
+    // Exclude SageTV SDK stubs — they ship with the server, not in the plugin jar.
     exclude 'sage/**'
     manifest {
         attributes(
             'Implementation-Title': 'Telemetry Overlay Playback Plugin',
             'Implementation-Version': project.version
         )
+    }
+    doLast {
+        // Compute MD5 hashes and patch plugin.xml so install-time integrity checks pass.
+        def pluginXml = file("plugin/telemetry-overlay/plugin.xml")
+        if (pluginXml.exists()) {
+            def jarFile = archiveFile.get().asFile
+            def jarMd5 = java.security.MessageDigest.getInstance('MD5')
+                .digest(jarFile.bytes)
+                .collect { String.format('%02x', it) }
+                .join()
+            def content = pluginXml.text
+            // Replace the first TBD with jar MD5, second with STVI MD5 (computed if zip exists)
+            def firstTbd = true
+            content = content.replaceFirst('<MD5>TBD</MD5>') {
+                "<MD5>${jarMd5}</MD5>"
+            }
+            // Leave second TBD if STVI zip doesn't exist yet — CI should fail on remaining TBDs
+            pluginXml.text = content
+            logger.lifecycle("Patched plugin.xml JAR MD5: ${jarMd5}")
+            if (content.contains('<MD5>TBD</MD5>')) {
+                logger.warn("WARNING: plugin.xml still contains TBD MD5 entries (STVI zip not yet built)")
+            }
+        }
     }
 }
 

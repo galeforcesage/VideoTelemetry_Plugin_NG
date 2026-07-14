@@ -116,9 +116,31 @@ try {
 Write-Output "Edit succeeded and XML validated. Backup: $backupPath"
 
 if ($Deploy) {
-    Write-Output "Deploying with stop/copy/start sequence to $DeployUser@$DeployHost"
-    ssh "$DeployUser@$DeployHost" "/opt/sagetv/server/stopsage"
+    # Build docker exec prefix when deploying inside a container
+    $dockerPrefix = ""
+    if (-not [string]::IsNullOrWhiteSpace($Container)) {
+        $dockerPrefix = "docker exec $Container "
+    }
+
+    Write-Output "Deploying with stop/copy/start sequence to $DeployUser@$DeployHost (container: $( if ($dockerPrefix) { $Container } else { 'none' }))"
+
+    Write-Output "Stopping SageTV..."
+    ssh "$DeployUser@$DeployHost" "${dockerPrefix}/opt/sagetv/server/stopsage"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to stop SageTV on remote host (exit code $LASTEXITCODE). Aborting deployment."
+    }
+
+    Write-Output "Copying STV file..."
     scp "$StvPath" "${DeployUser}@${DeployHost}:$RemoteStvPath"
-    ssh "$DeployUser@$DeployHost" "/opt/sagetv/server/startsage"
+    if ($LASTEXITCODE -ne 0) {
+        throw "SCP transfer failed (exit code $LASTEXITCODE). SageTV is stopped — manual recovery may be needed."
+    }
+
+    Write-Output "Starting SageTV..."
+    ssh "$DeployUser@$DeployHost" "${dockerPrefix}/opt/sagetv/server/startsage"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to start SageTV on remote host (exit code $LASTEXITCODE)."
+    }
+
     Write-Output "Deployment complete."
 }

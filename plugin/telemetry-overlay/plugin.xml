@@ -14,7 +14,7 @@
   <Package>
     <PackageType>JAR</PackageType>
     <Location>https://github.com/galeforcesage/VideoTelemetry_Plugin_NG/releases/download/v1.0.0/telemetry-overlay.jar</Location>
-    <MD5>TBD</MD5>
+    <MD5>e87a1ec0a3bb168a9cf5f00e172779e8</MD5>
     <Overwrite>true</Overwrite>
   </Package>
   <Package>

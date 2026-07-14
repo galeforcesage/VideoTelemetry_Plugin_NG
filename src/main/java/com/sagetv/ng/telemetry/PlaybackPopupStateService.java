@@ -10,11 +10,25 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class PlaybackPopupStateService {
+    private static final int MAX_MEDIA_ENTRIES = 500;
+
     private final PlaybackCapabilityService capabilityService;
     private final TelemetrySidecarDetector sidecarDetector;
     private final TelemetryAdapter telemetryAdapter;
-    private final Map<String, Boolean> overlayEnabledByMedia = new LinkedHashMap<>();
-    private final Map<String, Set<String>> enabledFieldsByMedia = new LinkedHashMap<>();
+
+    // Bounded LRU caches to prevent unbounded memory growth on long-running servers.
+    private final Map<String, Boolean> overlayEnabledByMedia = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+            return size() > MAX_MEDIA_ENTRIES;
+        }
+    };
+    private final Map<String, Set<String>> enabledFieldsByMedia = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Set<String>> eldest) {
+            return size() > MAX_MEDIA_ENTRIES;
+        }
+    };
 
     public PlaybackPopupStateService(PlaybackCapabilityService capabilityService) {
         this(capabilityService, new TelemetrySidecarDetector(), new DjiSrtParser());

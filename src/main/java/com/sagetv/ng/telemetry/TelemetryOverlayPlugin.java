@@ -5,8 +5,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Logger;
 
 public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
+    private static final Logger logger = Logger.getLogger(TelemetryOverlayPlugin.class.getName());
+
     public static final String PLUGIN_ID = "com.sagetv.ng.telemetry";
     public static final String PLUGIN_NAME = "Telemetry Overlay Playback";
     public static final String PLUGIN_VERSION = "1.0.0";
@@ -30,10 +33,20 @@ public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
         this(new PlaybackCapabilityService(), new NoOpCaptionCapabilitySource(), pluginRegistry, resetConfig);
     }
 
+    /**
+     * No-arg constructor — not intended for production use. SageTV always provides a
+     * SageTVPluginRegistry; this exists only for test/integration convenience.
+     *
+     * @throws IllegalStateException always — use the SageTVPluginRegistry constructor
+     */
     public TelemetryOverlayPlugin() {
-        this(new PlaybackCapabilityService(), new NoOpCaptionCapabilitySource(), null, false);
+        throw new IllegalStateException(
+            "Use the TelemetryOverlayPlugin(SageTVPluginRegistry) constructor. "
+            + "SageTV must supply a plugin registry for event subscriptions to work."
+        );
     }
 
+    /** Test-only constructor for unit tests that don't need event subscriptions. */
     public TelemetryOverlayPlugin(
         PlaybackCapabilityService capabilityService,
         CaptionCapabilitySource captionCapabilitySource
@@ -109,10 +122,10 @@ public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
         }
         started = true;
         if (pluginRegistry != null) {
-            pluginRegistry.eventSubscribe(this, ServerIntegrationNotes.EVENT_PLAYBACK_STARTED);
-            pluginRegistry.eventSubscribe(this, ServerIntegrationNotes.EVENT_PLAYBACK_STOPPED);
-            pluginRegistry.eventSubscribe(this, ServerIntegrationNotes.EVENT_PLAYBACK_FINISHED);
-            pluginRegistry.eventSubscribe(this, ServerIntegrationNotes.EVENT_MEDIA_FILE_REMOVED);
+            pluginRegistry.eventSubscribe(this, SageEventConstants.EVENT_PLAYBACK_STARTED);
+            pluginRegistry.eventSubscribe(this, SageEventConstants.EVENT_PLAYBACK_STOPPED);
+            pluginRegistry.eventSubscribe(this, SageEventConstants.EVENT_PLAYBACK_FINISHED);
+            pluginRegistry.eventSubscribe(this, SageEventConstants.EVENT_MEDIA_FILE_REMOVED);
         }
     }
 
@@ -123,10 +136,10 @@ public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
         }
         started = false;
         if (pluginRegistry != null) {
-            pluginRegistry.eventUnsubscribe(this, ServerIntegrationNotes.EVENT_PLAYBACK_STARTED);
-            pluginRegistry.eventUnsubscribe(this, ServerIntegrationNotes.EVENT_PLAYBACK_STOPPED);
-            pluginRegistry.eventUnsubscribe(this, ServerIntegrationNotes.EVENT_PLAYBACK_FINISHED);
-            pluginRegistry.eventUnsubscribe(this, ServerIntegrationNotes.EVENT_MEDIA_FILE_REMOVED);
+            pluginRegistry.eventUnsubscribe(this, SageEventConstants.EVENT_PLAYBACK_STARTED);
+            pluginRegistry.eventUnsubscribe(this, SageEventConstants.EVENT_PLAYBACK_STOPPED);
+            pluginRegistry.eventUnsubscribe(this, SageEventConstants.EVENT_PLAYBACK_FINISHED);
+            pluginRegistry.eventUnsubscribe(this, SageEventConstants.EVENT_MEDIA_FILE_REMOVED);
         }
     }
 
@@ -223,8 +236,9 @@ public final class TelemetryOverlayPlugin implements sage.SageTVPlugin {
 
     @Override
     public void sageEvent(String eventName, Map eventVars) {
+        logger.fine("Received SageTV event: " + eventName);
         // V1 intentionally keeps event handling lightweight; capability generation is on-demand.
-        if (ServerIntegrationNotes.EVENT_MEDIA_FILE_REMOVED.equals(eventName)) {
+        if (SageEventConstants.EVENT_MEDIA_FILE_REMOVED.equals(eventName)) {
             // Reserved for future cache eviction once persisted caches are introduced.
         }
     }
